@@ -49,7 +49,8 @@ def is_simple_blk_pac(flow):
         idc.print_insn_mnem(start_blk.end_ea - 4) == "TBZ" and \
         idc.print_insn_mnem(start_blk.end_ea) == "BRK":
         if verify_inst_blk(start_blk, pac_mode=True):
-            return start_blk.start_ea - 4 # address of last instruction (TBZ)
+            patch_pac_insn(start_blk.end_ea - 4)
+            return start_blk.end_ea - 4 # address of last instruction (TBZ)
     return False
 
 def is_simple_blk(flow):
@@ -63,7 +64,7 @@ def patch_pac_insn(tbz_insn_ea):
     # patch from eor insn
     topatch, _ = ks.asm(f"b {hex(b_target)}; nop; nop", tbz_insn_ea - 4)
     ida_bytes.patch_bytes(tbz_insn_ea - 4, bytes(topatch))
-
+    print(f"patched pac check @ {hex(tbz_insn_ea)}")
 
 def inline_simple_calls(addr):
     for item_ea in idautils.FuncItems(addr):
@@ -82,8 +83,6 @@ def inline_simple_calls(addr):
         if is_simple_blk(target_func_flow):
             inline_func(target_func_pfn)
             print(f"Inlined: {hex(item_ea)} -> {hex(target_func_ea)}")
-        elif tbz_insn_ea := is_simple_blk_pac(target_func_flow):
-            patch_pac_insn(tbz_insn_ea)
+        elif is_simple_blk_pac(target_func_flow):
             inline_func(target_func_pfn)
             print(f"Inlined (PAC): {hex(item_ea)} -> {hex(target_func_ea)}")
-    
